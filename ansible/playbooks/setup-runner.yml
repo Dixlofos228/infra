@@ -1,0 +1,83 @@
+---
+- name: Setup GitLab Runner on VM
+  hosts: gitlab-runner-vm
+  become: yes
+  vars:
+    gitlab_url: "https://gitlab.skillbox.ru"
+    runner_token: "glrt-K4hb4zeymJPofVKcGGPz"
+    runner_tags: "docker,ansible"
+    runner_name: "gcp-runner"
+    docker_image: "docker:latest"
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install dependencies
+      apt:
+        name:
+          - docker.io
+          - curl
+          - wget
+          - git
+        state: present
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Download GitLab Runner binary
+      get_url:
+        url: "https://gitlab-runner-downloads.s3.amazonaws.com/latest/binaries/gitlab-runner-linux-amd64"
+        dest: "/usr/local/bin/gitlab-runner"
+        mode: '0755'
+
+    - name: Create gitlab-runner user
+      user:
+        name: gitlab-runner
+        comment: "GitLab Runner"
+        home: /home/gitlab-runner
+        shell: /bin/bash
+
+    - name: Install GitLab Runner
+      command: /usr/local/bin/gitlab-runner install --user=gitlab-runner --working-directory=/home/gitlab-runner
+      args:
+        creates: /etc/gitlab-runner/config.toml
+
+    - name: Start GitLab Runner
+      systemd:
+        name: gitlab-runner
+        state: started
+        enabled: yes
+
+    - name: Register GitLab Runner
+      command: >
+        /usr/local/bin/gitlab-runner register
+        --non-interactive
+        --url "{{ gitlab_url }}"
+        --token "{{ runner_token }}"
+        --executor "docker"
+        --docker-image "{{ docker_image }}"
+        --description "{{ runner_name }}"
+        --tag-list "{{ runner_tags }}"
+        --docker-volumes "/var/run/docker.sock:/var/run/docker.sock"
+        --docker-privileged
+      args:
+        creates: /etc/gitlab-runner/config.toml
+      notify: restart gitlab-runner
+
+  handlers:
+    - name: restart gitlab-runner
+      systemd:
+        name: gitlab-runner
+        state: restarted
