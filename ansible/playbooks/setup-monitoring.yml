@@ -1,0 +1,139 @@
+---
+- name: Setup monitoring stack on monitoring VM
+  hosts: monitoring-vm
+  become: yes
+  vars:
+    prometheus_version: "2.45.0"
+    grafana_version: "10.2.2"
+    node_exporter_version: "1.6.1"
+    app_ip: "34.173.127.14"
+    domain: "monitoring-2026.ccwu.cc"
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install dependencies
+      apt:
+        name:
+          - wget
+          - curl
+          - tar
+          - unzip
+          - software-properties-common
+          - gnupg
+        state: present
+
+    # Установка Prometheus
+    - name: Create prometheus user
+      user:
+        name: prometheus
+        system: yes
+        shell: /bin/false
+
+    - name: Create prometheus directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: prometheus
+        group: prometheus
+        mode: 0755
+      loop:
+        - /etc/prometheus
+        - /var/lib/prometheus
+        - /etc/prometheus/rules
+        - /etc/prometheus/file_sd
+
+    - name: Download Prometheus
+      get_url:
+        url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+        dest: "/tmp/prometheus.tar.gz"
+
+    - name: Extract Prometheus
+      unarchive:
+        src: "/tmp/prometheus.tar.gz"
+        dest: "/tmp"
+        remote_src: yes
+        creates: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64"
+
+    - name: Copy prometheus binaries
+      copy:
+        src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        remote_src: yes
+        mode: 0755
+        owner: prometheus
+        group: prometheus
+      loop:
+        - prometheus
+        - promtool
+
+    - name: Create prometheus config
+      template:
+        src: prometheus.yml.j2
+        dest: /etc/prometheus/prometheus.yml
+        owner: prometheus
+        group: prometheus
+        mode: 0644
+      notify: restart prometheus
+
+    - name: Create prometheus systemd service
+      template:
+        src: prometheus.service.j2
+        dest: /etc/systemd/system/prometheus.service
+      notify:
+        - reload systemd
+        - restart prometheus
+
+    - name: Start and enable prometheus
+      systemd:
+        name: prometheus
+        state: started
+        enabled: yes
+
+    # Установка Grafana
+    - name: Add Grafana GPG key
+      apt_key:
+        url: https://apt.grafana.com/gpg.key
+        state: present
+
+    - name: Add Grafana repository
+      apt_repository:
+        repo: "deb https://apt.grafana.com stable main"
+        state: present
+
+    - name: Install Grafana
+      apt:
+        name: grafana
+        state: present
+        update_cache: yes
+
+    - name: Configure Grafana
+      lineinfile:
+        path: /etc/grafana/grafana.ini
+        regexp: '^;http_addr ='
+        line: 'http_addr = 0.0.0.0'
+      notify: restart grafana
+
+    - name: Start and enable Grafana
+      systemd:
+        name: grafana-server
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: restart prometheus
+      systemd:
+        name: prometheus
+        state: restarted
+
+    - name: restart grafana
+      systemd:
+        name: grafana-server
+        state: restarted
