@@ -1,108 +1,163 @@
 # Instahelper Infrastructure (GCP)
 
 ## 📋 Краткое описание
-Этот репозиторий содержит код для развертывания инфраструктуры приложения Instahelper в Google Cloud Platform с использованием Terraform.
-
-## 🔧 Требования к инфраструктуре
-- [Google Cloud Platform аккаунт](https://cloud.google.com/) с активным биллингом
-- [Установленный gcloud CLI](https://cloud.google.com/sdk/docs/install)
-- [Terraform >= 1.0](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli)
-- [Git](https://git-scm.com/downloads)
+Этот репозиторий содержит код для развертывания инфраструктуры приложения Instahelper в Google Cloud Platform с использованием Terraform и Ansible. Поддерживаются два окружения: **uat** (тестовое) и **prod** (продакшен).
 
 ---
 
-## 📦 Предварительная установка
+## 🔧 Требования
+- Google Cloud Platform аккаунт с активным биллингом
+- Установленный gcloud CLI
+- Terraform >= 1.0
+- Ansible >= 2.9
+- Git
 
-```bash
-# Установка Terraform (Arch Linux)
-sudo pacman -S terraform
+---
 
-# Установка gcloud CLI
-curl -sSL https://sdk.cloud.google.com | bash
+# 📦 Структура проекта
+
+```text
+infra/
+├── terraform/
+│   ├── modules/                 # Переиспользуемые модули
+│   │   ├── network/             # Модуль VPC и подсетей
+│   │   └── app_instance/        # Модуль ВМ приложения
+│   └── environments/
+│       ├── uat/                 # Тестовое окружение
+│       │   ├── main.tf
+│       │   ├── variables.tf
+│       │   └── terraform.tfvars
+│       └── prod/                # Продакшен окружение
+│           ├── main.tf
+│           ├── variables.tf
+│           └── terraform.tfvars
+├── ansible/
+│   ├── inventory/
+│   │   ├── uat.yml              # Инвентарь для UAT
+│   │   └── prod.yml             # Инвентарь для PROD
+│   └── playbooks/
+│       ├── setup-monitoring.yml     # Установка Prometheus/Grafana
+│       ├── setup-node-exporter.yml  # Установка Node Exporter
+│       └── setup-runner.yml         # Установка GitLab Runner
+└── docs/
+    └── ladr-monitoring.md      # LADR документ
 ```
 
 ---
 
-## 🚀 Развертывание проекта
+# 🚀 Развертывание окружений
 
-### 1. Клонирование репозитория
+## 1. Клонирование репозитория
 
 ```bash
 git clone https://gitlab.skillbox.ru/alex_ignatenko/infra.git
-cd infra/terraform/environments/prod
+cd infra/terraform/environments
 ```
 
-### 2. Настройка переменных
+---
 
-Создайте файл `terraform.tfvars`:
+## 2. Настройка переменных
+
+Для каждого окружения создайте `terraform.tfvars`.
+
+### uat/terraform.tfvars
 
 ```hcl
-project_id  = "instahelper-1772547417"
-region      = "us-central1"
-zone        = "us-central1-a"
-domain_name = ""
+project_id          = "instahelper-1772547417"
+region              = "us-central1"
+zone                = "us-central1-a"
+environment         = "uat"
+machine_type_app    = "e2-small"
+app_instance_count  = 1
+domain_name         = "uat.monitoring-2026.ccwu.cc"
 ```
 
-### 3. Создание сервисного аккаунта
+### prod/terraform.tfvars
 
-```bash
-gcloud iam service-accounts create terraform-sa
-
-gcloud projects add-iam-policy-binding instahelper-1772547417 \
-    --member="serviceAccount:terraform-sa@instahelper-1772547417.iam.gserviceaccount.com" \
-    --role="roles/editor"
-
-gcloud iam service-accounts keys create ~/terraform-key.json \
-    --iam-account="terraform-sa@instahelper-1772547417.iam.gserviceaccount.com"
+```hcl
+project_id          = "instahelper-1772547417"
+region              = "us-central1"
+zone                = "us-central1-a"
+environment         = "prod"
+machine_type_app    = "e2-small"
+app_instance_count  = 1
+domain_name         = "prod.monitoring-2026.ccwu.cc"
 ```
 
-### 4. Деплой инфраструктуры
+---
+
+# 3. Деплой инфраструктуры
 
 ```bash
+# Для UAT окружения
+cd uat
 terraform init
-terraform plan
+terraform apply -auto-approve
+
+# Для PROD окружения
+cd ../prod
+terraform init
 terraform apply -auto-approve
 ```
 
-### 5. Сохранение выходных данных
+---
+
+# 4. Настройка мониторинга через Ansible
 
 ```bash
-terraform output
+cd ../../ansible
+
+# Для UAT
+ansible-playbook -i inventory/uat.yml playbooks/setup-node-exporter.yml
+ansible-playbook -i inventory/uat.yml playbooks/setup-monitoring.yml
+
+# Для PROD
+ansible-playbook -i inventory/prod.yml playbooks/setup-node-exporter.yml
+ansible-playbook -i inventory/prod.yml playbooks/setup-monitoring.yml
 ```
 
 ---
 
-## 🖥️ Состав серверов
+# 📊 Результаты развертывания
 
-- **Виртуальная машина:** 1 инстанс (`e2-small`, 20GB диск)
-- **Балансировщик:** Глобальный HTTP балансировщик
-- **Сеть:** VPC с подсетью `10.10.0.0/24`
-- **Firewall:** Правила для HTTP (80, 8080) и SSH (22)
+## UAT Окружение
+
+| Ресурс | Адрес |
+|------|------|
+| Приложение | http://35.223.114.56:8080 |
+| Балансировщик | http://34.117.173.214 |
+| Prometheus | http://104.154.119.173:9090 |
+| Grafana | http://104.154.119.173:3000 |
+| Домен | monitoring.monitoring-2026.ccwu.cc (Prometheus) |
+| | grafana.monitoring-2026.ccwu.cc (Grafana) |
 
 ---
 
-## 🔄 Схема взаимодействия
+## PROD Окружение
+
+| Ресурс | Адрес |
+|------|------|
+| Приложение | http://34.10.20.104:8080 |
+| Балансировщик | http://34.117.173.214 |
+| Prometheus | http://136.111.88.71:9090 |
+| Grafana | http://136.111.88.71:3000 |
+| Домен | prod.monitoring-2026.ccwu.cc (балансировщик) |
+
+---
+
+# 🔥 Firewall правила
 
 ```text
-Пользователь → HTTP (80) → Балансировщик → Backend Service → Instance Group → VM (порт 8080)
+allow-http-prod           # порты 80, 8080
+allow-ssh-prod            # порт 22
+allow-prometheus-prod     # порт 9090
+allow-grafana-prod        # порт 3000
+allow-node-exporter-prod  # порт 9100
 ```
 
 ---
 
-## 📁 Структура файлов
-
-- `providers.tf` — настройка провайдера GCP  
-- `variables.tf` — входные переменные  
-- `network.tf` — VPC, подсети, firewall правила  
-- `vm.tf` — виртуальная машина и instance group  
-- `loadbalancer.tf` — балансировщик, health check  
-- `outputs.tf` — выходные данные (IP адреса)  
-
----
-
-## 💾 Хранение состояния Terraform
-
-Рекомендуется использовать удаленный бэкенд:
+# 💾 Хранение состояния Terraform
 
 ```hcl
 terraform {
@@ -118,10 +173,15 @@ terraform {
 
 ---
 
-## 📝 Результаты развертывания
+# 📤 КОМАНДЫ ДЛЯ ОБНОВЛЕНИЯ
 
-После успешного применения Terraform вы получите:
+```bash
+cd ~/devops-gcp/infra
 
-- Балансировщик: http://130.211.25.158  
-- Приложение доступно по адресу: http://130.211.25.158  
-- Health check: http://130.211.25.158/health  
+nano README.md
+# Вставь новый текст
+
+git add README.md
+git commit -m "Update README with two environments (uat and prod)"
+git push origin master
+```

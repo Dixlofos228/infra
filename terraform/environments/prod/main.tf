@@ -32,7 +32,7 @@ module "app" {
   tags           = ["app-server"]
 }
 
-# ВМ для мониторинга (если нужна для uat)
+# ВМ для мониторинга
 resource "google_compute_instance" "monitoring" {
   name         = "monitoring-${var.environment}"
   machine_type = var.machine_type_monitoring
@@ -64,20 +64,66 @@ resource "google_compute_instance" "monitoring" {
   }
 }
 
-# Балансировщик
+# IP адрес балансировщика
 resource "google_compute_global_address" "lb_ip" {
   name = "instahelper-lb-${var.environment}"
 }
 
+# Группа инстансов
 resource "google_compute_instance_group" "app_group" {
   name     = "instahelper-group-${var.environment}"
   zone     = var.zone
-  instances = module.app.instance_self_links  # Вместо instance_ips
+  instances = module.app.instance_self_links
   
   named_port {
     name = "http"
     port = 8080
   }
+}
+
+# Health check
+resource "google_compute_health_check" "app_health" {
+  name = "instahelper-health-${var.environment}"
+  
+  http_health_check {
+    port         = 8080
+    request_path = "/health"
+  }
+}
+
+# Backend service
+resource "google_compute_backend_service" "app_backend" {
+  name          = "instahelper-backend-${var.environment}"
+  health_checks = [google_compute_health_check.app_health.id]
+  port_name     = "http"
+  protocol      = "HTTP"
+  timeout_sec   = 10
+  
+  backend {
+    group = google_compute_instance_group.app_group.id
+  }
+}
+
+# URL map
+resource "google_compute_url_map" "app_url_map" {
+  name            = "instahelper-urlmap-${var.environment}"
+  default_service = google_compute_backend_service.app_backend.id
+}
+
+# HTTP proxy
+resource "google_compute_target_http_proxy" "app_http_proxy" {
+  name    = "instahelper-httpproxy-${var.environment}"
+  url_map = google_compute_url_map.app_url_map.id
+}
+
+# Forwarding rule
+resource "google_compute_global_forwarding_rule" "app_http_forwarding" {
+  name                  = "instahelper-httpforwarding-${var.environment}"
+  ip_protocol           = "TCP"
+  port_range            = "80"
+  target                = google_compute_target_http_proxy.app_http_proxy.id
+  ip_address            = google_compute_global_address.lb_ip.address
+  load_balancing_scheme = "EXTERNAL"
 }
 
 # Выводы
