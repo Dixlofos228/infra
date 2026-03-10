@@ -1,6 +1,6 @@
 ---
 - name: Setup Node Exporter on app server
-  hosts: app-vm
+  hosts: app  # Ищем группу app, а не конкретный хост
   become: yes
   vars:
     node_exporter_version: "1.6.1"
@@ -46,7 +46,7 @@
           User=node_exporter
           Group=node_exporter
           Type=simple
-          ExecStart=/usr/local/bin/node_exporter
+          ExecStart=/usr/local/bin/node_exporter --web.listen-address="0.0.0.0:9100"
 
           [Install]
           WantedBy=multi-user.target
