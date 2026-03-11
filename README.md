@@ -133,15 +133,14 @@ ansible-playbook -i inventory/prod.yml playbooks/setup-monitoring.yml
 
 ---
 
-## PROD Окружение
-
+### PROD Окружение
 | Ресурс | Адрес |
-|------|------|
-| Приложение | http://34.10.20.104:8080 |
-| Балансировщик | http://34.117.173.214 |
-| Prometheus | http://136.111.88.71:9090 |
-| Grafana | http://136.111.88.71:3000 |
-| Домен | prod.monitoring-2026.ccwu.cc (балансировщик) |
+|--------|-------|
+| Приложение через балансировщик | `http://prod.monitoring-2026.ccwu.cc` |
+| Прямой доступ к инстансу | `http://34.10.20.104:8080` |
+| Prometheus | `http://136.111.88.71:9090` |
+| Grafana | `http://136.111.88.71:3000` |
+| DNS запись | `prod.monitoring-2026.ccwu.cc` → `34.117.173.214` |
 
 ---
 
