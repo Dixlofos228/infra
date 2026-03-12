@@ -1,0 +1,40 @@
+# Terraform files
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+terraform.tfvars
+terraform.tfvars.json
+crash.log
+crash.*.log
+
+# Sensitive files
+*.json
+*.key
+*.pem
+*.priv
+!terraform/environments/**/.terraform/modules/modules.json
+
+# Local .terraform directories
+**/.terraform/*
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# Ignore override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore plan files
+*.plan
+*.out
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
