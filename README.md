@@ -184,3 +184,69 @@ git add README.md
 git commit -m "Update README with two environments (uat and prod)"
 git push origin master
 ```
+---
+
+## 📊 Инфраструктура для логирования
+
+### Обзор
+Проект использует **Pydantic Logfire** для сбора и анализа логов. Хотя сам Logfire является облачным SaaS-решением, инфраструктура обеспечивает:
+
+1. **Доступ к серверам** для установки агентов сбора логов  
+2. **Сетевую связность** между серверами и внешними API  
+3. **Обновление Docker-образов** с интегрированным Logfire SDK  
+
+---
+
+## Компоненты инфраструктуры
+
+| Компонент | Назначение | Реализация |
+|-----------|------------|------------|
+| **Firewall правила** | Разрешить исходящий трафик к API Logfire | `google_compute_firewall` ресурсы |
+| **Service Account** | Права для доступа к метаданным | `service_account` в инстансах |
+| **Ansible плейбуки** | Установка зависимостей и настройка окружения | `ansible/playbooks/setup-logging.yml` |
+| **Переменные окружения** | Хранение токена Logfire | CI/CD переменные в GitLab |
+
+---
+
+## Настройка доступа к Logfire API
+
+Для отправки логов сервера должны иметь доступ к API Logfire:
+
+- **API endpoint:** `https://logfire-eu.pydantic.dev`  
+- **Порты:** HTTPS (`443`)  
+- **Домены:** `*.pydantic.dev`  
+
+---
+
+## Terraform-ресурсы для логирования
+
+```hcl
+# Пример firewall правила для исходящего трафика
+resource "google_compute_firewall" "allow-egress-logfire" {
+  name    = "allow-egress-logfire"
+  network = google_compute_network.vpc.name
+  direction = "EGRESS"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["443"]
+  }
+
+  destination_ranges = ["0.0.0.0/0"]
+  target_tags        = ["app-server", "logging-agent"]
+}
+```
+
+---
+
+## Ansible роль для настройки логирования
+
+Планируется добавить роль для автоматической установки агентов сбора логов (если потребуется self-hosted решение).
+
+---
+
+## 🔗 Ссылки
+
+- **Logfire Dashboard:** https://logfire-eu.pydantic.dev/senb0/instahelper-logs  
+- **Документация Logfire:** https://logfire.pydantic.dev/docs  
+- **Расчёты и обоснование выбора:** https://docs.google.com/spreadsheets/d/1Pf0uaylurlPbRIMk5au7VQgYIdyeR5WjKGrEsS45Ia8/edit?usp=sharing
