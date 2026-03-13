@@ -250,3 +250,9 @@ resource "google_compute_firewall" "allow-egress-logfire" {
 - **Logfire Dashboard:** https://logfire-eu.pydantic.dev/senb0/instahelper-logs  
 - **Документация Logfire:** https://logfire.pydantic.dev/docs  
 - **Расчёты и обоснование выбора:** https://docs.google.com/spreadsheets/d/1Pf0uaylurlPbRIMk5au7VQgYIdyeR5WjKGrEsS45Ia8/edit?usp=sharing
+
+---
+
+## 🗺️ План развития платформы (Roadmap)
+Документ с планом работ на ближайшие полгода доступен по ссылке:
+https://docs.google.com/document/d/1XJfLckaDNwLiiZxcHEHDqfXh-6Z4bw0454sHLGeFF00/edit?usp=sharing
