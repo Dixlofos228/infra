@@ -256,3 +256,56 @@ resource "google_compute_firewall" "allow-egress-logfire" {
 ## 🗺️ План развития платформы (Roadmap)
 Документ с планом работ на ближайшие полгода доступен по ссылке:
 https://docs.google.com/document/d/1XJfLckaDNwLiiZxcHEHDqfXh-6Z4bw0454sHLGeFF00/edit?usp=sharing
+
+-------------------
+
+## Финальная работа (DevOps-инженер. Advanced)
+
+### Выполненные задачи
+
+#### Раздел 1. Service Discovery (Consul)
+- Развернут кластер Consul (сервер на monitoring-prod, агент на instahelper-prod-1)
+- Настроена автоматическая регистрация сервисов
+- Установлен consul-exporter, метрики собираются в Prometheus
+- Создан дашборд в Grafana для мониторинга Consul
+- В Consul KV store записаны версии приложения
+
+#### Раздел 2. Автоматическое масштабирование
+- Создан образ ВМ instahelper-base-image-final
+- Создан instance template instahelper-template-final
+- Настроена managed instance group с автоскейлингом (min=1, max=5, target CPU=60%)
+- Проведено нагрузочное тестирование, автоскейлер сработал
+
+#### Раздел 3. Оптимизация метрик (VictoriaMetrics)
+- Развернута VictoriaMetrics на monitoring-prod
+- Настроен remote write из Prometheus в VictoriaMetrics
+- Создан дашборд в Grafana с метриками из VictoriaMetrics
+
+#### Раздел 4. EFK Stack (Elasticsearch, Fluentd, Kibana)
+- Развернут Elasticsearch в Docker
+- Развернута Kibana на отдельной ВМ
+- Настроен Curator для удаления старых логов (cron задание)
+- Настроены firewall правила для доступа между компонентами
+
+#### Раздел 5. Статический анализ кода (SonarQube)
+- Развернут SonarQube на отдельной ВМ
+- Создан проект instahelper-service
+- Сгенерирован токен и добавлен в GitLab CI/CD
+- Настроен пайплайн с этапом sonarqube-check
+- Написана документация для разработчиков
+
+#### Раздел 6. Сетевая безопасность
+- Создана отдельная VPC security-lab-vpc
+- Созданы 5 подсетей (DMZ, app1, app2, db1, db2)
+- Настроены firewall правила согласно матрице доступности
+- Созданы тестовые ВМ для проверки связности
+- Составлена матрица доступности
+
+#### Раздел 7. Бюджетирование
+- Составлен годовой бюджет на эталонный сервис
+- Добавлены комментарии по оптимизации каждой статьи расходов
+- Таблица доступна по ссылке
+
+### Ссылки
+- Бюджетирование: https://docs.google.com/document/d/1brk9fGb5lnjPDp-Xv5hFD5RAZIk-Eah1sp91PtcHuSE/edit?usp=sharing
+- Матрица доступности: https://docs.google.com/document/d/13EhB5jM08FKXNwjk2R6Bz5LCNEieI_uetMIIP56xXX8/edit?usp=sharing
